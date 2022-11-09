@@ -1,43 +1,157 @@
+use clap::Parser;
 use futures::{
     future::{self, Ready},
-    // prelude::*,
+    prelude::*,
 };
 // use io::stdin;
 // use std::io;
 use tarpc::{
     client, context,
     server::{self, incoming::Incoming, Channel},
+    tokio_serde::formats::Json,
 };
 
-// Service Traits available to service clients
-#[tarpc::service]
-trait Service {
-    async fn alive() -> String; // Returns a true or times out
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    os::windows::prelude::AsRawHandle,
+    time::Duration,
+};
+
+use port_check::*;
+use port_scanner::*;
+use std::thread;
+
+#[derive(Parser)]
+struct Flags {
+    /// Sets the port number to listen on.
+    #[clap(long)]
+    port: u16,
 }
 
-// Methods Implementation called upon by service clients
+// Service Traits definition of methods available to service clients
+#[tarpc::service]
+trait Service {
+    async fn alive() -> bool; // Returns a true or times out
+}
+
+// Server definition
 #[derive(Clone)]
-struct NodeService;
+struct NodeService(SocketAddr);
+
+// Methods Implementation called upon by service clients
+#[tarpc::server]
 impl Service for NodeService {
-    type AliveFut = Ready<String>;
-    fn alive(self, _: context::Context) -> Self::AliveFut {
-        future::ready(format!("Service is Alive"))
+    async fn alive(self, _: context::Context) -> bool {
+        println!("Alive called for instance");
+        true
     }
 }
 
-// Start live listerner for client method calls
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initiate the service for recieving calls
-    let (client_transport, server_transport) = tarpc::transport::channel::unbounded();
-    let server = server::BaseChannel::with_defaults(server_transport);
-    tokio::spawn(server.execute(NodeService.serve()));
+// Scans for the next port in the range
+fn find_port() -> u16 {
+    let mut port = 0;
+    for index in 2..40 {
+        if scan_port(index) == false {
+            println!("- Port number {} available for instance use", index);
+            port = index;
+            break;
+        }
+    }
+    port
+}
 
-    // An example client calling/testing a spawned service
-    let client = ServiceClient::new(client::Config::default(), client_transport).spawn();
+// Starts a listener service for rpc calls
+async fn start_listener() -> anyhow::Result<()> {
+    // Generate valid network properties for this service
+    let port = find_port();
+    let server_addr = (IpAddr::V4(Ipv4Addr::LOCALHOST), port);
+
+    // Initiate service listener to outside services
+    let mut listener = tarpc::serde_transport::tcp::listen(&server_addr, Json::default).await?;
+    listener.config_mut().max_frame_length(usize::MAX);
+    println!(
+        "- Node instance has been started on http://localhost::{}",
+        port
+    );
+
+    // find_friends().await;
+
+    // let (client_transport, server_transport) = tarpc::transport::channel::unbounded();
+    // let server = server::BaseChannel::with_defaults(server_transport);
+    // let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 2);
+    // tokio::spawn(server.execute(NodeService(socket).serve()));
+
+    // Process Incoming requests to this service
+    listener
+        .filter_map(|r| future::ready(r.ok()))
+        .map(server::BaseChannel::with_defaults)
+        .max_channels_per_key(1, |t| t.transport().peer_addr().unwrap().ip())
+        .map(|channel| async {
+            let SocketAddr = channel.transport().peer_addr().unwrap();
+            println!("- Channel service running on {}", SocketAddr);
+            let server = NodeService(SocketAddr);
+            channel.execute(server.serve());
+        })
+        .buffer_unordered(10)
+        .for_each(|_| async {
+            println!("- Reached into for each");
+        })
+        .await;
+
+    test_node_service().await;
+
+    println!("- Crossed listener request processor");
+
+    Ok(())
+}
+
+// Scans for all nodes which respond to alive calls
+async fn find_friends() -> anyhow::Result<()> {
+    // Find all valid ports which are in use
+    println!("2. Scanning for alive nodes");
+    let mut inuse: Vec<u16> = Vec::new();
+    for index in 2..40 {
+        // println!("Is port::{index} free? = {}", is_local_port_free(index));
+        if is_local_port_free(index) == false {
+            inuse.push(index);
+        }
+    }
+    println!("- All inuse ports found {:?}", inuse);
+
+    // Find all validated ports
+    // Send alive call to check if service is a node
+    let mut validnodes: Vec<u16> = Vec::new();
+    for port in inuse {
+        let server_addr = (IpAddr::V4(Ipv4Addr::LOCALHOST), port);
+        let transport = tarpc::serde_transport::tcp::connect(server_addr, Json::default);
+        let client = ServiceClient::new(client::Config::default(), transport.await?).spawn();
+        let hello = client.alive(context::current()).await;
+
+        println!("- Response from alive call {:?}", hello);
+    }
+
+    Ok(())
+}
+
+async fn test_node_service() -> anyhow::Result<()> {
+    println!("3. Client test call is already running");
+    let server_addr = (IpAddr::V4(Ipv4Addr::LOCALHOST), 2);
+    let transport = tarpc::serde_transport::tcp::connect(server_addr, Json::default);
+    let client = ServiceClient::new(client::Config::default(), transport.await?).spawn();
     let hello = client.alive(context::current()).await?;
 
-    println!("Alive Check = {hello}");
+    println!("- Response from alive call {:?}", hello);
+
+    Ok(())
+}
+
+// Execute the lifecycle of node services
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    println!("1. Spawning Node listener service");
+    start_listener().await;
+    println!("- Crossed listener request function");
+
     Ok(())
 }
 
@@ -49,6 +163,12 @@ Using Tarp
 
 Learnings
 - Tokio is how Tarp is capable of recieving and processing multiple RPC calls made in close succession
+- We need one thread responding and processing requests
+- We need another sending for sending requests to other services
+
+
+- returns a future instead of blocking the thread
+- we need to settle the thread
 
 Methods
 - init = starts the instance & it's rpc setup
