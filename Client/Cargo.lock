@@ -3,6 +3,27 @@
 version = 3
 
 [[package]]
+name = "Client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "clap",
+ "futures",
+ "log",
+ "opentelemetry",
+ "opentelemetry-jaeger",
+ "port_check",
+ "port_scanner",
+ "rand",
+ "tarpc",
+ "tokio",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -604,27 +625,6 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys",
-]
-
-[[package]]
-name = "node"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-std",
- "clap",
- "futures",
- "log",
- "opentelemetry",
- "opentelemetry-jaeger",
- "port_check",
- "port_scanner",
- "rand",
- "tarpc",
- "tokio",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
 ]
 
 [[package]]

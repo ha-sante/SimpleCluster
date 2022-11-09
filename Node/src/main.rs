@@ -17,6 +17,8 @@ use std::{
     time::Duration,
 };
 
+use async_std::task;
+
 use port_check::*;
 use port_scanner::*;
 use std::thread;
@@ -28,22 +30,22 @@ struct Flags {
     port: u16,
 }
 
-// Service Traits definition of methods available to service clients
-#[tarpc::service]
-trait Service {
-    async fn alive() -> bool; // Returns a true or times out
-}
-
 // Server definition
 #[derive(Clone)]
 struct NodeService(SocketAddr);
 
+// Service Traits definition of methods available to service clients
+#[tarpc::service]
+trait Service {
+    async fn alive() -> String; // Returns a true or times out
+}
+
 // Methods Implementation called upon by service clients
 #[tarpc::server]
 impl Service for NodeService {
-    async fn alive(self, _: context::Context) -> bool {
-        println!("Alive called for instance");
-        true
+    type AliveFut = Ready<String>;
+    fn alive(self, _: context::Context) -> Self::AliveFut {
+        future::ready(format!("Service is Alive"))
     }
 }
 
@@ -74,7 +76,8 @@ async fn start_listener() -> anyhow::Result<()> {
         port
     );
 
-    // find_friends().await;
+    // test_node_service();
+    // TODO: Run test node service listener when the request processor has loaded
 
     // let (client_transport, server_transport) = tarpc::transport::channel::unbounded();
     // let server = server::BaseChannel::with_defaults(server_transport);
@@ -88,17 +91,13 @@ async fn start_listener() -> anyhow::Result<()> {
         .max_channels_per_key(1, |t| t.transport().peer_addr().unwrap().ip())
         .map(|channel| async {
             let SocketAddr = channel.transport().peer_addr().unwrap();
-            println!("- Channel service running on {}", SocketAddr);
+            println!("- Channel service instance running on {}", SocketAddr);
             let server = NodeService(SocketAddr);
             channel.execute(server.serve());
         })
-        .buffer_unordered(10)
-        .for_each(|_| async {
-            println!("- Reached into for each");
-        })
+        .buffer_unordered(1)
+        .for_each(|_| async {})
         .await;
-
-    test_node_service().await;
 
     println!("- Crossed listener request processor");
 
@@ -134,10 +133,12 @@ async fn find_friends() -> anyhow::Result<()> {
 }
 
 async fn test_node_service() -> anyhow::Result<()> {
-    println!("3. Client test call is already running");
+    println!("3. Client test call is being executed 1");
     let server_addr = (IpAddr::V4(Ipv4Addr::LOCALHOST), 2);
     let transport = tarpc::serde_transport::tcp::connect(server_addr, Json::default);
+    // println!("- Transport used for alive call {:?}", transport.config());
     let client = ServiceClient::new(client::Config::default(), transport.await?).spawn();
+    // println!("4. Client test call is has executed 2 {:?}", client);
     let hello = client.alive(context::current()).await?;
 
     println!("- Response from alive call {:?}", hello);
@@ -149,8 +150,25 @@ async fn test_node_service() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("1. Spawning Node listener service");
+
+    // let sender = thread::spawn(|| async {
+    // });
+
+    // let child = task::spawn(async {
     start_listener().await;
-    println!("- Crossed listener request function");
+    // });
+
+    // // some work here
+    // let res = child.await;
+
+    println!("- Passed waiting for child instance");
+
+    // let receiver = thread::spawn(move || {
+    //     // let value = rx.recv().expect("Unable to receive from channel");
+    //     // println!("{value}");
+    // });
+
+    // sender.join().expect("The sender thread has panicked");
 
     Ok(())
 }
