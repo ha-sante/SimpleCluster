@@ -534,6 +534,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
 
 [[package]]
+name = "io-context"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6deff8086863b4b598829cfe72d405540d1497fe997f903cc171aade51dae88c"
+
+[[package]]
 name = "itoa"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -614,6 +620,7 @@ dependencies = [
  "async-std",
  "clap",
  "futures",
+ "io-context",
  "log",
  "opentelemetry",
  "opentelemetry-jaeger",

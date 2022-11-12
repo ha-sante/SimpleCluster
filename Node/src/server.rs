@@ -21,7 +21,44 @@ use async_std::task;
 
 use port_check::*;
 use port_scanner::*;
-use std::thread;
+// use std::thread;
+
+// use io_context::*;
+// use self::{init_tracing, World};
+
+
+
+
+use std::env;
+use tracing_subscriber::{fmt::format::FmtSpan, prelude::*};
+
+/// This is the service definition. It looks a lot like a trait definition.
+/// It defines one RPC, hello, which takes one arg, name, and returns a String.
+#[tarpc::service]
+pub trait World {
+    /// Returns a greeting for name.
+    async fn hello(name: String) -> String;
+}
+
+/// Initializes an OpenTelemetry tracing subscriber with a Jaeger backend.
+pub fn init_tracing(service_name: &str) -> anyhow::Result<()> {
+    env::set_var("OTEL_BSP_MAX_EXPORT_BATCH_SIZE", "12");
+
+    let tracer = opentelemetry_jaeger::new_pipeline()
+        .with_service_name(service_name)
+        .with_max_packet_size(2usize.pow(13))
+        .install_batch(opentelemetry::runtime::Tokio)?;
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(tracing_subscriber::fmt::layer().with_span_events(FmtSpan::NEW | FmtSpan::CLOSE))
+        .with(tracing_opentelemetry::layer().with_tracer(tracer))
+        .try_init()?;
+
+    Ok(())
+}
+
+
 
 #[derive(Parser)]
 struct Flags {
@@ -45,6 +82,7 @@ trait Service {
 impl Service for NodeService {
     type AliveFut = Ready<String>;
     fn alive(self, _: context::Context) -> Self::AliveFut {
+        println!("Alive call has been called");
         future::ready(format!("Service is Alive"))
     }
 }
@@ -72,13 +110,12 @@ async fn start_listener() -> anyhow::Result<()> {
     let mut listener = tarpc::serde_transport::tcp::listen(&server_addr, Json::default).await?;
     listener.config_mut().max_frame_length(usize::MAX);
     println!(
-        "- Node instance has been started on http://localhost::{}",
+        "- Node instance has been started on 127.0.0.1:{}",
         port
     );
 
-    // test_node_service();
+    // find_friends().await;
     // TODO: Run test node service listener when the request processor has loaded
-
     // let (client_transport, server_transport) = tarpc::transport::channel::unbounded();
     // let server = server::BaseChannel::with_defaults(server_transport);
     // let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 2);
@@ -139,7 +176,12 @@ async fn test_node_service() -> anyhow::Result<()> {
     // println!("- Transport used for alive call {:?}", transport.config());
     let client = ServiceClient::new(client::Config::default(), transport.await?).spawn();
     // println!("4. Client test call is has executed 2 {:?}", client);
-    let hello = client.alive(context::current()).await?;
+
+    // let five_seconds = Duration::new(5, 0);
+
+    let mut ctx = tarpc::context::Context::current();
+    // ctx.add_timeout(Duration::from_secs(5000));
+    let hello = client.alive(ctx).await?;
 
     println!("- Response from alive call {:?}", hello);
 
@@ -149,25 +191,22 @@ async fn test_node_service() -> anyhow::Result<()> {
 // Execute the lifecycle of node services
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("1. Spawning Node listener service");
+    init_tracing("Tarpc Example Server")?;
 
+    start_listener().await;
+
+    // println!("1. Spawning Node listener service");
     // let sender = thread::spawn(|| async {
     // });
-
     // let child = task::spawn(async {
-    start_listener().await;
     // });
-
     // // some work here
     // let res = child.await;
-
-    println!("- Passed waiting for child instance");
-
+    // println!("- Passed waiting for child instance");
     // let receiver = thread::spawn(move || {
     //     // let value = rx.recv().expect("Unable to receive from channel");
     //     // println!("{value}");
     // });
-
     // sender.join().expect("The sender thread has panicked");
 
     Ok(())
@@ -203,3 +242,6 @@ Components
 - friends_list = local in memory array of n5th group node memebers
 - synched_global_ledger = local in memory array of all instances available across the network
 */
+
+
+// function to call an api
