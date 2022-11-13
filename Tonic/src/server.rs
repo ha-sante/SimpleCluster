@@ -1,7 +1,8 @@
 use tonic::{transport::Server, Request, Response, Status};
 
+use futures::{executor, future};
 use hello_world::greeter_server::{Greeter, GreeterServer};
-use hello_world::{HelloReply, HelloRequest};
+use hello_world::{HelloReply, HelloRequest}; // 0.3.5
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -25,6 +26,12 @@ impl Greeter for MyGreeter {
     }
 }
 
+
+
+async fn find_friends(){
+    println!("Finding friends by network ports")
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse().unwrap();
@@ -32,12 +39,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("GreeterServer listening on {}", addr);
 
-    Server::builder()
-        .add_service(GreeterServer::new(greeter))
-        .serve(addr)
-        .await?;
+    // tokio::spawn(async move {
+    //     println!("Logging after the call went through");
+    // })
+    // .await;
 
-        println!("Logging after the call went through");
+    // process(socket).await;
+    let (_s, _g) = future::join(
+        Server::builder()
+            .add_service(GreeterServer::new(greeter))
+            .serve(addr)
+            .await,
+        find_friends(),
+    )
+    .await;
+
+    println!("Logging after the call went through");
 
     Ok(())
 }
