@@ -19,6 +19,7 @@ futures = "0.3.25"
 
 port_scanner = "0.1.5"
 port_check = "0.1.5"
+portpicker = "0.1.1"
 
 [build-dependencies]
 tonic-build = "0.8"
