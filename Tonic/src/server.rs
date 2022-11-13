@@ -3,25 +3,26 @@ use port_scanner::*;
 use std::thread;
 use tonic::{transport::Server, Request, Response, Status};
 
-use hello_world::greeter_server::{Greeter, GreeterServer};
-use hello_world::{HelloReply, HelloRequest};
+use dondon::instance_server::{Instance, InstanceServer};
+use dondon::{HelloReply, HelloRequest};
 
-pub mod hello_world {
-    tonic::include_proto!("helloworld");
+pub mod dondon {
+    tonic::include_proto!("dondon");
 }
 
+
 #[derive(Default)]
-pub struct MyGreeter {}
+pub struct DondonInstance {}
 
 #[tonic::async_trait]
-impl Greeter for MyGreeter {
-    async fn say_hello(
+impl Instance for DondonInstance {
+    async fn hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
         println!("Got a request from {:?}", request.remote_addr());
 
-        let reply = hello_world::HelloReply {
+        let reply = dondon::HelloReply {
             message: format!("Hello {}!", request.into_inner().name),
         };
         Ok(Response::new(reply))
@@ -46,13 +47,13 @@ fn find_port() -> u16 {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let port = find_port().to_string();
     let addr = format!("[::1]:{}", port).parse().unwrap();
-    let greeter = MyGreeter::default();
+    let greeter = DondonInstance::default();
 
     let instance_thread = thread::spawn(move || async move {
         println!("Service Instance listening on {}", addr);
 
         Server::builder()
-            .add_service(GreeterServer::new(greeter))
+            .add_service(InstanceServer::new(greeter))
             .serve(addr)
             .await;
     });

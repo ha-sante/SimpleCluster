@@ -1,5 +1,5 @@
 syntax = "proto3";
-package service;
+package dondon;
 
 service Instance {
     rpc hello (HelloRequest) returns (HelloReply);
