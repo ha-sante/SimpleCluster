@@ -1,4 +1,5 @@
 use port_scanner::*;
+use tokio::time::error::Error;
 use std::net::*;
 use winping::{Buffer, Pinger};
 
@@ -62,7 +63,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await;
     });
 
-    find_friends(port).await;
+    // Find other server instances
+    let friends = find_friends(port).await;
+    match friends{
+        Result => println!("5. Recieved friends list of {:?}", Result),
+        _ => println!("Recieved no collection of friends")
+    }
+
+    // Start server instance
     instance_thread.join().unwrap().await;
 
     println!("Logging after the call went through");
@@ -91,7 +99,7 @@ fn find_port() -> u16 {
 }
 
 // Scans a range of ports and returns those who respond to hello RPC calls
-async fn find_friends(skip: u16) -> Result<(), Box<dyn std::error::Error>> {
+async fn find_friends(skip: u16) -> Result<Vec<u16>, Box<dyn std::error::Error>> {
     println!("3. Finding for other dondons");
     let mut others: Vec<u16> = Vec::new();
     for index in 2..7 {
@@ -118,9 +126,8 @@ async fn find_friends(skip: u16) -> Result<(), Box<dyn std::error::Error>> {
         valid.push(port);
     }
 
-    Ok(())
+    Ok(valid)
 }
-
 
 
 /*
