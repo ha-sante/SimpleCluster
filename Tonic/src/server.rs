@@ -17,6 +17,21 @@ pub mod dondon {
     tonic::include_proto!("dondon");
 }
 
+struct NodeInstance {
+    address: String,
+    friends: Vec<String>,
+    group: Vec<String>,
+    leader: String,
+}
+
+// static mut thisInstance: NodeInstance = NodeInstance {
+//     address: String::from("Hello"),
+//     friends: Vec::new(),
+//     group: Vec::new(),
+//     leader: String::from("hellow")
+// };
+
+
 #[derive(Default)]
 pub struct DondonInstance {}
 
@@ -105,6 +120,8 @@ async fn find_friends(skip: u16) -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+
 
 /*
 Methods
