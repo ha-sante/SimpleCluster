@@ -18,12 +18,13 @@ pub mod dondon {
     tonic::include_proto!("dondon");
 }
 
-struct NodeInstance {
-    address: String,
-    friends: Vec<String>,
-    group: Vec<String>,
-    leader: String,
-}
+
+// struct NodeInstance {
+//     address: String,
+//     friends: Vec<String>,
+//     group: Vec<String>,
+//     leader: String,
+// }
 
 // static mut thisInstance: NodeInstance = NodeInstance {
 //     address: String::from("Hello"),
@@ -38,7 +39,20 @@ pub struct DondonInstance {}
 
 #[tonic::async_trait]
 impl Instance for DondonInstance {
+
+    // Sends back hello call response
     async fn hello(&self, request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+        println!("- Got a request from {:?}", request.remote_addr());
+
+        let reply = dondon::HelloReply {
+            message: format!("Hello! {}", request.into_inner().name),
+        };
+
+        Ok(Response::new(reply))
+    }
+
+    // Calls for an update to the friends list of this node
+    async fn find_friends(&self, request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
         println!("- Got a request from {:?}", request.remote_addr());
 
         let reply = dondon::HelloReply {
@@ -63,9 +77,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await;
     });
 
+    let mut friends:Vec<String> = Vec::new();
+
     // Find other server instances
-    let friends = find_friends(port).await;
-    match friends{
+    let list = find_friends(port, &friends).await;
+    match list{
         Result => println!("5. Recieved friends list of {:?}", Result),
         _ => println!("Recieved no collection of friends")
     }
@@ -99,7 +115,7 @@ fn find_port() -> u16 {
 }
 
 // Scans a range of ports and returns those who respond to hello RPC calls
-async fn find_friends(skip: u16) -> Result<Vec<u16>, Box<dyn std::error::Error>> {
+async fn find_friends(skip: u16, friends: &Vec<String>) -> Result<Vec<u16>, Box<dyn std::error::Error>> {
     println!("3. Finding for other dondons");
     let mut others: Vec<u16> = Vec::new();
     for index in 2..7 {
@@ -124,8 +140,10 @@ async fn find_friends(skip: u16) -> Result<Vec<u16>, Box<dyn std::error::Error>>
 
         println!("RESPONSE={:?}", response);
         valid.push(port);
+        // friends.push(format!("http://127.0.0.1:{}", port))
     }
 
+    // TODO: Store the found list into an local variable
     Ok(valid)
 }
 
@@ -136,6 +154,7 @@ Methods
 - alive = responds to rpc calls with ok
 - find_friends = scans a static range of ports for alive calls
 - request_leader_vote = randomly selects a node as a n5th group leader
+
 - generate_computation = creates the jobs to be done
 - request_computation = sends computation work to all group members, listens for responses from all of them and does something with the results.
 - compute = takes a compute work, crunches a result and sends back as it's result

@@ -3,6 +3,7 @@ package dondon;
 
 service Instance {
     rpc hello (HelloRequest) returns (HelloReply);
+    rpc find_friends (HelloRequest) returns (HelloReply);
 }
 
 message HelloRequest {
