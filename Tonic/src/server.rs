@@ -3,6 +3,10 @@ use tokio::time::error::Error;
 use std::net::*;
 use winping::{Buffer, Pinger};
 
+
+#[macro_use] extern crate airone;
+use airone::prelude::*;
+
 use std::net::Ipv6Addr;
 use std::str::FromStr;
 use std::thread;
@@ -14,25 +18,50 @@ use dondon::instance_server::{Instance, InstanceServer};
 
 use dondon::{HelloReply, HelloRequest};
 
+
+
+airone_init!();
+airone_db!(
+    // struct NodeInstance {
+    //     pub address: String,
+    //     pub friends: Vec<String>,
+    //     pub group: Vec<String>,
+    //     pub leader: String,
+    // }
+    struct Foo
+    {
+        pub address: f64,
+        pub field2: String,
+        field3: Option<i32>
+    }
+);
+
+// struct NodeInstance {
+//     pub address: String,
+//     pub friends: Vec<String>,
+//     pub group: Vec<String>,
+//     pub leader: String,
+// }
+
+// struct NodeInstance {
+//     port: u16,
+//     friends: Vec<String>,
+//     group: Vec<String>,
+//     leader: u16,
+// }
+
+// Stores details of current instance
+// static mut thisInstance: NodeInstance = NodeInstance {
+//     port : 0,
+//     friends: Vec::new(),
+//     group: Vec::new(),
+//     leader: 0
+// };
+
+
 pub mod dondon {
     tonic::include_proto!("dondon");
 }
-
-
-// struct NodeInstance {
-//     address: String,
-//     friends: Vec<String>,
-//     group: Vec<String>,
-//     leader: String,
-// }
-
-// static mut thisInstance: NodeInstance = NodeInstance {
-//     address: String::from("Hello"),
-//     friends: Vec::new(),
-//     group: Vec::new(),
-//     leader: String::from("hellow")
-// };
-
 
 #[derive(Default)]
 pub struct DondonInstance {}
@@ -59,6 +88,8 @@ impl Instance for DondonInstance {
             message: format!("Hello! {}", request.into_inner().name),
         };
 
+        // find_friends().await;
+
         Ok(Response::new(reply))
     }
 }
@@ -68,7 +99,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let port = find_port();
     let greeter = DondonInstance::default();
     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
-
     let instance_thread = thread::spawn(move || async move {
         println!("1. Service Instance listening on {}", socket);
         Server::builder()
@@ -78,6 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let mut friends:Vec<String> = Vec::new();
+    let mut database: AironeDb<Foo> = AironeDb::new();
 
     // Find other server instances
     let list = find_friends(port, &friends).await;
