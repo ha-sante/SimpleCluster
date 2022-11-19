@@ -3,13 +3,12 @@ use tokio::time::error::Error;
 use std::net::*;
 use winping::{Buffer, Pinger};
 
-
-#[macro_use] extern crate airone;
-use airone::prelude::*;
-
 use std::net::Ipv6Addr;
 use std::str::FromStr;
 use std::thread;
+
+use clementine::*;
+
 
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -19,44 +18,12 @@ use dondon::instance_server::{Instance, InstanceServer};
 use dondon::{HelloReply, HelloRequest};
 
 
-
-airone_init!();
-airone_db!(
-    // struct NodeInstance {
-    //     pub address: String,
-    //     pub friends: Vec<String>,
-    //     pub group: Vec<String>,
-    //     pub leader: String,
-    // }
-    struct Foo
-    {
-        pub address: f64,
-        pub field2: String,
-        field3: Option<i32>
-    }
-);
-
 // struct NodeInstance {
 //     pub address: String,
 //     pub friends: Vec<String>,
 //     pub group: Vec<String>,
 //     pub leader: String,
 // }
-
-// struct NodeInstance {
-//     port: u16,
-//     friends: Vec<String>,
-//     group: Vec<String>,
-//     leader: u16,
-// }
-
-// Stores details of current instance
-// static mut thisInstance: NodeInstance = NodeInstance {
-//     port : 0,
-//     friends: Vec::new(),
-//     group: Vec::new(),
-//     leader: 0
-// };
 
 
 pub mod dondon {
@@ -108,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let mut friends:Vec<String> = Vec::new();
-    let mut database: AironeDb<Foo> = AironeDb::new();
+    let database = Database::new(Config::default())?;
 
     // Find other server instances
     let list = find_friends(port, &friends).await;
@@ -119,9 +86,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start server instance
     instance_thread.join().unwrap().await;
-
-    println!("Logging after the call went through");
-
     Ok(())
 }
 
