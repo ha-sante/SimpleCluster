@@ -1,14 +1,11 @@
 use port_scanner::*;
-use tokio::time::error::Error;
 use std::net::*;
+use tokio::time::error::Error;
 use winping::{Buffer, Pinger};
 
 use std::net::Ipv6Addr;
 use std::str::FromStr;
 use std::thread;
-
-use clementine::*;
-
 
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -17,7 +14,6 @@ use dondon::instance_server::{Instance, InstanceServer};
 
 use dondon::{HelloReply, HelloRequest};
 
-
 // struct NodeInstance {
 //     pub address: String,
 //     pub friends: Vec<String>,
@@ -25,6 +21,24 @@ use dondon::{HelloReply, HelloRequest};
 //     pub leader: String,
 // }
 
+pub struct Friend {
+    address: String,
+    port: u16,
+}
+
+pub struct FriendsList(Vec<Friend>);
+
+impl FriendsList {
+    pub fn create_Friend(&mut self, port_number: u16) -> &Friend {
+        let new_Friend = Friend {
+            address: String::from(format!("http://127.0.01:{}", port_number)),
+            port: port_number,
+        };
+
+        self.0.push(new_Friend);
+        return &self.0[self.0.len() - 1];
+    }
+}
 
 pub mod dondon {
     tonic::include_proto!("dondon");
@@ -35,8 +49,7 @@ pub struct DondonInstance {}
 
 #[tonic::async_trait]
 impl Instance for DondonInstance {
-
-    // Sends back hello call response
+    // Hello World RPC
     async fn hello(&self, request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
         println!("- Got a request from {:?}", request.remote_addr());
 
@@ -47,15 +60,16 @@ impl Instance for DondonInstance {
         Ok(Response::new(reply))
     }
 
-    // Calls for an update to the friends list of this node
-    async fn find_friends(&self, request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+    // Friends List RPC
+    async fn find_friends(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
         println!("- Got a request from {:?}", request.remote_addr());
 
         let reply = dondon::HelloReply {
             message: format!("Hello! {}", request.into_inner().name),
         };
-
-        // find_friends().await;
 
         Ok(Response::new(reply))
     }
@@ -63,6 +77,7 @@ impl Instance for DondonInstance {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Server Setup
     let port = find_port();
     let greeter = DondonInstance::default();
     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
@@ -74,17 +89,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await;
     });
 
-    let mut friends:Vec<String> = Vec::new();
-    let database = Database::new(Config::default())?;
+    // Find Friends
+    let mut values: Vec<Friend> = Vec::new();
+    let mut friends = FriendsList(values);
 
-    // Find other server instances
-    let list = find_friends(port, &friends).await;
-    match list{
+    let list = find_friends(port, &mut friends).await;
+    match list {
         Result => println!("5. Recieved friends list of {:?}", Result),
-        _ => println!("Recieved no collection of friends")
+        _ => println!("Recieved no collection of friends"),
     }
 
-    // Start server instance
+    // Start Server
     instance_thread.join().unwrap().await;
     Ok(())
 }
@@ -110,7 +125,10 @@ fn find_port() -> u16 {
 }
 
 // Scans a range of ports and returns those who respond to hello RPC calls
-async fn find_friends(skip: u16, friends: &Vec<String>) -> Result<Vec<u16>, Box<dyn std::error::Error>> {
+async fn find_friends(
+    skip: u16,
+    friends: &mut FriendsList,
+) -> Result<Vec<u16>, Box<dyn std::error::Error>> {
     println!("3. Finding for other dondons");
     let mut others: Vec<u16> = Vec::new();
     for index in 2..7 {
@@ -135,13 +153,17 @@ async fn find_friends(skip: u16, friends: &Vec<String>) -> Result<Vec<u16>, Box<
 
         println!("RESPONSE={:?}", response);
         valid.push(port);
-        // friends.push(format!("http://127.0.0.1:{}", port))
+
+        let friend: Friend = Friend {
+            address: format!("http://127.0.0.1:{}", port),
+            port: 0,
+        };
+        friends.0.push(friend)
     }
 
     // TODO: Store the found list into an local variable
     Ok(valid)
 }
-
 
 /*
 Methods
