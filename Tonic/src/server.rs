@@ -3,7 +3,8 @@ use tokio::time::error::Error;
 use winping::{Buffer, Pinger};
 use webbrowser;
 
--use std::str::FromStr;
+use std::env;
+use std::path;
 use std::thread;
 use std::net::*;
 
@@ -103,8 +104,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // TODO: Start a web portal for compute jobs
-    if webbrowser::open("http://henryasante.com").is_ok() {
+    let a = env::current_dir()?;
+    let b = "/assets/portal.html";
+    let path_result = format!("{}\n{}", a.display(), b);
+    println!("Opening this page {}", path_result);
+
+    if webbrowser::open(path_result.as_str()).is_ok() {
         // ...
+    }else{
+        println!("Error could not open the web portal page")
     }
 
     // Start Server
