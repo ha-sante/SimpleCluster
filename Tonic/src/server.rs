@@ -1,11 +1,11 @@
 use port_scanner::*;
-use std::net::*;
 use tokio::time::error::Error;
 use winping::{Buffer, Pinger};
+use webbrowser;
 
-use std::net::Ipv6Addr;
-use std::str::FromStr;
+-use std::str::FromStr;
 use std::thread;
+use std::net::*;
 
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -21,11 +21,14 @@ use dondon::{HelloReply, HelloRequest};
 //     pub leader: String,
 // }
 
+#[derive(Debug)]
 pub struct Friend {
     address: String,
     port: u16,
 }
 
+
+#[derive(Debug)]
 pub struct FriendsList(Vec<Friend>);
 
 impl FriendsList {
@@ -95,8 +98,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let list = find_friends(port, &mut friends).await;
     match list {
-        Result => println!("5. Recieved friends list of {:?}", Result),
+        Result => println!("5. Recieved friends list of {:?}", friends),
         _ => println!("Recieved no collection of friends"),
+    }
+
+    // TODO: Start a web portal for compute jobs
+    if webbrowser::open("http://henryasante.com").is_ok() {
+        // ...
     }
 
     // Start Server
@@ -156,12 +164,10 @@ async fn find_friends(
 
         let friend: Friend = Friend {
             address: format!("http://127.0.0.1:{}", port),
-            port: 0,
+            port: port,
         };
         friends.0.push(friend)
     }
-
-    // TODO: Store the found list into an local variable
     Ok(valid)
 }
 
