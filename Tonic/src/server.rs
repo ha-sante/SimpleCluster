@@ -1,20 +1,20 @@
 use std::env;
+use std::net::*;
 use std::path;
 use std::thread;
-use std::net::*;
 
 use tonic::{transport::Server, Request, Response, Status};
 
 use dondon::instance_client::InstanceClient;
 use dondon::instance_server::{Instance, InstanceServer};
-use dondon::{HelloReply, HelloRequest};
+use dondon::{HelloReply, HelloRequest, ComputeReply, ComputeRequest};
 
 use port_scanner::*;
 use tokio::time::error::Error;
-use winping::{Buffer, Pinger};
 use webbrowser;
+use winping::{Buffer, Pinger};
 
-use evcxr::Error;
+// use evcxr::Error;
 use evcxr::EvalContext;
 
 // struct NodeInstance {
@@ -29,7 +29,6 @@ pub struct Friend {
     address: String,
     port: u16,
 }
-
 
 #[derive(Debug)]
 pub struct FriendsList(Vec<Friend>);
@@ -63,6 +62,23 @@ impl Instance for DondonInstance {
             message: format!("Hello! {}", request.into_inner().name),
         };
 
+        evcxr::runtime_hook();
+        if let Ok((mut context, outputs)) = EvalContext::new() {
+            context.eval("let mut s = String::new();");
+            context.eval(r#"s.push_str("Hello, ");"#);
+            context.eval(r#"s.push_str("World!");"#);
+            context.eval(r#"println!("{}", s);"#);
+
+            // For this trivial example, we just receive a single line of output from
+            // the code that was run. In a more complex case, we'd likely want to have
+            // separate threads waiting for output on both stdout and stderr.
+            if let Ok(line) = outputs.stdout.recv() {
+                println!("{line}");
+            } else {
+                println!("Error running computational work")
+            }
+        }
+
         Ok(Response::new(reply))
     }
 
@@ -75,6 +91,20 @@ impl Instance for DondonInstance {
 
         let reply = dondon::HelloReply {
             message: format!("Hello! {}", request.into_inner().name),
+        };
+
+        Ok(Response::new(reply))
+    }
+
+    // Compute RPC
+    async fn compute(
+        &self,
+        request: Request<ComputeRequest>,
+    ) -> Result<Response<ComputeReply>, Status> {
+        println!("- Got a request from {:?}", request.remote_addr());
+
+        let reply = dondon::ComputeReply {
+            message: format!("Hello! {}", request.into_inner().code),
         };
 
         Ok(Response::new(reply))
@@ -107,7 +137,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => println!("Recieved no collection of friends"),
     }
 
-
     // Start Compute Portal
     // TODO: Reduce redundancy if another node has opened this portal already
     let a = env::current_dir()?;
@@ -116,7 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Opening this page {}", path_result);
     if webbrowser::open(path_result.as_str()).is_ok() {
         // ...
-    }else{
+    } else {
         println!("Error could not open the web portal page")
     }
 
@@ -130,7 +159,7 @@ fn find_port() -> u16 {
     println!("2. Finding a port for this instance");
     let mut port = 2;
 
-    for index in 0..10 {
+    for index in 2..10 {
         println!(
             "- Port {index} open? {}",
             scan_port_addr(format!("127.0.0.1:{}", index))

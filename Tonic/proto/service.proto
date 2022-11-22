@@ -1,15 +1,29 @@
 syntax = "proto3";
 package dondon;
 
+
+// Service Definitions
 service Instance {
     rpc hello (HelloRequest) returns (HelloReply);
     rpc find_friends (HelloRequest) returns (HelloReply);
+    rpc compute (ComputeRequest) returns (ComputeReply);
 }
 
+// Hello Props
 message HelloRequest {
    string name = 1;
 }
 
 message HelloReply {
     string message = 1;
+}
+
+
+// Compute Props
+message ComputeRequest {
+    string code = 1;
+}
+
+message ComputeReply {
+     string message = 1;
 }
