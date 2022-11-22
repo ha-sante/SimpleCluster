@@ -21,7 +21,7 @@ winping = "0.10.1"
 
 port_scanner = "0.1.5"
 webbrowser = "0.8.2"
-
+evcxr = "0.14.1"
 
 [build-dependencies]
 tonic-build = "0.8"

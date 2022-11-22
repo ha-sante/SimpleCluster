@@ -1,8 +1,3 @@
-use port_scanner::*;
-use tokio::time::error::Error;
-use winping::{Buffer, Pinger};
-use webbrowser;
-
 use std::env;
 use std::path;
 use std::thread;
@@ -12,8 +7,15 @@ use tonic::{transport::Server, Request, Response, Status};
 
 use dondon::instance_client::InstanceClient;
 use dondon::instance_server::{Instance, InstanceServer};
-
 use dondon::{HelloReply, HelloRequest};
+
+use port_scanner::*;
+use tokio::time::error::Error;
+use winping::{Buffer, Pinger};
+use webbrowser;
+
+use evcxr::Error;
+use evcxr::EvalContext;
 
 // struct NodeInstance {
 //     pub address: String,
@@ -81,6 +83,9 @@ impl Instance for DondonInstance {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Setup Executor
+    evcxr::runtime_hook();
+
     // Server Setup
     let port = find_port();
     let greeter = DondonInstance::default();
@@ -96,19 +101,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Find Friends
     let mut values: Vec<Friend> = Vec::new();
     let mut friends = FriendsList(values);
-
     let list = find_friends(port, &mut friends).await;
     match list {
         Result => println!("5. Recieved friends list of {:?}", friends),
         _ => println!("Recieved no collection of friends"),
     }
 
-    // TODO: Start a web portal for compute jobs
+
+    // Start Compute Portal
+    // TODO: Reduce redundancy if another node has opened this portal already
     let a = env::current_dir()?;
     let b = "/assets/portal.html";
     let path_result = format!("{}\n{}", a.display(), b);
     println!("Opening this page {}", path_result);
-
     if webbrowser::open(path_result.as_str()).is_ok() {
         // ...
     }else{
