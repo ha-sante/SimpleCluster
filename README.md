@@ -1,2 +1,1 @@
-Resilence features as not it's goal, SimpleCluster solves the imaginary problem of making multiple program nodes work together to provide a single computational unit to whom it bestows it's powers on.
-
+SimpleCluster is a personal practice project that simulates distributed coordination using simple program nodes running on a single PC. It’s designed to solve array-like problems by splitting work across locally running nodes that discover each other and compute in parallel.
